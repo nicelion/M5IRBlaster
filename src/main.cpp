@@ -1,3 +1,12 @@
+/*
+  main.cpp
+
+  Created by Ian Thompson on Wed Jun 29 2022
+  ianthompson@nicelion.com
+  https://www.nicelion.com
+
+
+ */
 
 #include <M5StickC.h>
 #include <Arduino.h>
