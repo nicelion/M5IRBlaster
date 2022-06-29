@@ -17,9 +17,12 @@
 #include <IRtext.h>
 #include <IRutils.h>
 #include <WiFi.h>
-#include "network.h"
 
 const bool DEBUG = true;
+
+const uint16_t usbStatePin = G32;
+bool isTVOn = false;
+int maxRetries = 5;
 
 // Sending Code
 const uint16_t kIrLed = M5_IR; // ESP8266 GPIO pin to use. Recommended: 4 (D2).
@@ -43,8 +46,8 @@ IRrecv irrecv(kRecvPin, kCaptureBufferSize, 50, true); // or 15
 decode_results results;                                // Somewhere to store the results
 
 // Wifi SSID and password
-// const char *networkSSID = SSID;
-// const char *networkPass = password;
+const char *networkSSID = "FG_Wireless";
+const char *networkPass = "0rangesubmarine";
 
 const uint ServerPort = 5457;
 WiFiServer Server(ServerPort);
@@ -100,6 +103,7 @@ void ConnectToNetwork()
 
   WiFi.begin(networkSSID, networkPass);
 }
+
 void setup()
 {
   M5.begin();
@@ -108,6 +112,7 @@ void setup()
   M5.Lcd.setTextSize(1);
 
   pinMode(kIrLed, OUTPUT);
+  pinMode(usbStatePin, INPUT);
 
   irsend.begin();
 
@@ -128,12 +133,53 @@ void setup()
   Server.begin();
 }
 
-void sendIRSignal()
+bool checkTVState()
 {
-  Serial.println("Sending IR Signal");
-  irsend.sendRaw(onOffCommand, 71, 38); // Send a raw data capture at 38kHz.
-  delay(2000);
-  Serial.println("Signal Sent!");
+  return digitalRead(usbStatePin);
+}
+
+void sendOnCommand(int retries)
+{
+  if (retries >= maxRetries)
+  {
+    Serial.println("Aborting onCommand due to max retries");
+    return;
+  }
+  if (checkTVState() == false)
+  {
+    Serial.println("Sending ON signal");
+    irsend.sendRaw(onOffCommand, 71, 38); // Send a raw data capture at 38kHz.
+    delay(5000);
+    Serial.println("Signal Sent!");
+
+    if (checkTVState() == false)
+    {
+      Serial.println("Sending on signal again because we haven't detected the tv turning on yet");
+      sendOnCommand(retries + 1);
+    }
+  }
+}
+
+void sendOffCommand(int retries)
+{
+  if (retries >= maxRetries)
+  {
+    Serial.println("Aborting offCommand due to max retries");
+    return;
+  }
+  if (checkTVState() == true)
+  {
+    Serial.println("Sending OFF Signal");
+    irsend.sendRaw(onOffCommand, 71, 38); // Send a raw data capture at 38kHz.
+    delay(5000);
+    Serial.println("Signal Sent!");
+
+    if (checkTVState() == true)
+    {
+      Serial.println("Sending off signal again because we haven't detected the tv turning off yet");
+      sendOnCommand(retries + 1);
+    }
+  }
 }
 
 void handleReceiving()
@@ -166,6 +212,11 @@ void handleReceiving()
   }
 }
 
+void checkPowerState()
+{
+  digitalRead(usbStatePin);
+}
+
 void CheckForConnections()
 {
   if (Server.hasClient())
@@ -193,7 +244,11 @@ String CheckMessage(String message)
   Serial.println("Checking command: " + message);
   if (message == "on")
   {
-    sendIRSignal();
+    sendOnCommand(0);
+  }
+  else if (message == "off")
+  {
+    sendOffCommand(0);
   }
   else
   {
@@ -222,6 +277,5 @@ void loop()
 {
   CheckForConnections();
   ReceiveData();
-  // handleEmitting();
-  // handleReceiving();
+  isTVOn = digitalRead(usbStatePin);
 }
