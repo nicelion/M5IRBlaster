@@ -8,6 +8,7 @@
 #include <IRtext.h>
 #include <IRutils.h>
 #include <WiFi.h>
+#include "network.h"
 
 const bool DEBUG = true;
 
@@ -33,8 +34,9 @@ IRrecv irrecv(kRecvPin, kCaptureBufferSize, 50, true); // or 15
 decode_results results;                                // Somewhere to store the results
 
 // Wifi SSID and password
-const char *networkSSID = "FG_Wireless";
-const char *networkPass = "0rangesubmarine";
+// const char *networkSSID = SSID;
+// const char *networkPass = password;
+
 const uint ServerPort = 5457;
 WiFiServer Server(ServerPort);
 WiFiClient RemoteClient;
